@@ -1,23 +1,26 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0f0f1a">
   <title>Nikhil — War Room</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
-  <script src="js/roadmap.js"></script>
-  <script src="js/dsa.js"></script>
-  <script src="js/storage.js"></script>
-  <script src="js/drive.js"></script>
-  <script src="js/jobs.js"></script>
+
+  <!-- All scripts deferred so DOM is ready before any JS runs -->
+  <script src="js/storage.js" defer></script>
+  <script src="js/drive.js" defer></script>
+  <script src="js/roadmap.js" defer></script>
+  <script src="js/dsa.js" defer></script>
+  <script src="js/jobs.js" defer></script>
   <script src="js/app.js" defer></script>
 </head>
 <body>
-<canvas id="confetti"></canvas>
-<div id="toast"></div>
+
+<canvas id="confetti" width="0" height="0"></canvas>
+<div id="toast" role="status" aria-live="polite"></div>
 
 <div class="shell">
   <!-- ── SIDEBAR ── -->
@@ -45,25 +48,39 @@
     </nav>
 
     <div class="sidebar-tracks">
-      <div class="st-row"><span class="st-dot" style="background:#818cf8"></span><span class="st-name">AI Track</span><span class="st-pct" id="sideAIPct">0%</span></div>
-      <div class="st-row"><span class="st-dot" style="background:#38bdf8"></span><span class="st-name">DSA Track</span><span class="st-pct" id="sideDSAPct">0%</span></div>
-      <div class="st-row"><span class="st-dot" style="background:#34d399"></span><span class="st-name">SQL Track</span><span class="st-pct" id="sideSQLPct">0%</span></div>
+      <div class="st-row">
+        <span class="st-dot" style="background:#818cf8"></span>
+        <span class="st-name">AI Track</span>
+        <span class="st-pct" id="sideAIPct">0%</span>
+      </div>
+      <div class="st-row">
+        <span class="st-dot" style="background:#38bdf8"></span>
+        <span class="st-name">DSA Track</span>
+        <span class="st-pct" id="sideDSAPct">0%</span>
+      </div>
+      <div class="st-row">
+        <span class="st-dot" style="background:#34d399"></span>
+        <span class="st-name">SQL Track</span>
+        <span class="st-pct" id="sideSQLPct">0%</span>
+      </div>
     </div>
 
     <!-- Drive sync -->
     <div class="drive-section">
-      <div id="syncIndicator" class="sync-indicator"><span class="sync-dot disconnected"></span> Not synced</div>
+      <div id="syncIndicator" class="sync-indicator">
+        <span class="sync-dot disconnected"></span> Not synced
+      </div>
       <div class="drive-btns">
-        <button id="connectDriveBtn" class="drive-btn" onclick="connectDrive()">🔗 Connect Drive</button>
-        <button id="syncBtn" class="drive-btn" style="display:none" onclick="syncToDrive()">☁️ Sync</button>
-        <button id="loadBtn" class="drive-btn" style="display:none" onclick="loadFromDrive()">⬇️ Load</button>
+        <button id="connectDriveBtn" class="drive-btn">🔗 Connect Drive</button>
+        <button id="syncBtn" class="drive-btn hidden">☁️ Sync</button>
+        <button id="loadBtn" class="drive-btn hidden">⬇️ Load</button>
       </div>
     </div>
 
     <div class="sidebar-bottom">
       <button id="themeBtn" class="sb-btn">☀️ Light</button>
-      <button onclick="exportData()" class="sb-btn">📤 Export</button>
-      <button onclick="resetData()" class="sb-btn danger">🗑 Reset</button>
+      <button id="exportBtn" class="sb-btn">📤 Export</button>
+      <button id="resetBtn" class="sb-btn danger">🗑 Reset</button>
     </div>
   </aside>
 
@@ -84,27 +101,48 @@
     <div id="tab-jobs" class="tab-pane">
       <div class="jobs-topbar">
         <h2 class="page-title">💼 Job Applications</h2>
-        <button class="add-btn" onclick="toggleJobForm()">+ Add Application</button>
+        <button id="addJobBtn" class="add-btn">+ Add Application</button>
       </div>
       <div id="jobStatsRow" class="job-stats-row"></div>
       <div id="jobForm" class="job-form hidden">
         <div class="jf-grid">
-          <div class="fg"><label>Company *</label><input id="jCompany" type="text" placeholder="Google"></div>
-          <div class="fg"><label>Role *</label><input id="jRole" type="text" placeholder="ML Engineer"></div>
-          <div class="fg"><label>Date Applied</label><input id="jDate" type="date"></div>
-          <div class="fg"><label>Method</label>
-            <select id="jMethod"><option>LinkedIn</option><option>Direct</option><option>Referral</option><option>Email</option><option>Other</option></select>
+          <div class="fg">
+            <label for="jCompany">Company *</label>
+            <input id="jCompany" type="text" placeholder="Google">
           </div>
-          <div class="fg full"><label>Notes</label><input id="jNotes" type="text" placeholder="Recruiter name, JD link, anything useful…"></div>
+          <div class="fg">
+            <label for="jRole">Role *</label>
+            <input id="jRole" type="text" placeholder="ML Engineer">
+          </div>
+          <div class="fg">
+            <label for="jDate">Date Applied</label>
+            <input id="jDate" type="date">
+          </div>
+          <div class="fg">
+            <label for="jMethod">Method</label>
+            <select id="jMethod">
+              <option>LinkedIn</option>
+              <option>Direct</option>
+              <option>Referral</option>
+              <option>Email</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="fg full">
+            <label for="jNotes">Notes</label>
+            <input id="jNotes" type="text" placeholder="Recruiter name, JD link, anything useful…">
+          </div>
         </div>
         <div class="jf-actions">
-          <button class="save-btn" onclick="addJob()">💾 Save</button>
-          <button class="cancel-btn" onclick="toggleJobForm()">Cancel</button>
+          <button id="saveJobBtn" class="save-btn">💾 Save</button>
+          <button id="cancelJobBtn" class="cancel-btn">Cancel</button>
         </div>
       </div>
       <div id="kanbanBoard" class="kanban-board"></div>
     </div>
   </main>
 </div>
+
+<noscript>This app requires JavaScript to run.</noscript>
 </body>
 </html>
