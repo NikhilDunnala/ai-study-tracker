@@ -1,297 +1,115 @@
+cat > /home/claude/war-room/index.html << 'EOF'
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Nikhil's AI Roadmap Tracker</title>
+  <title>Nikhil — War Room</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
   <script src="js/roadmap.js"></script>
+  <script src="js/dsa.js"></script>
   <script src="js/storage.js"></script>
-  <script src="js/jobs.js" defer></script>
+  <script src="js/drive.js"></script>
+  <script src="js/jobs.js"></script>
   <script src="js/app.js" defer></script>
 </head>
 <body>
-
-<!-- SPLASH SCREEN -->
-<div id="splash">
-  <div class="splash-bg"></div>
-  <div class="splash-content">
-    <div class="splash-emoji">🚀</div>
-    <h1 class="splash-title">Welcome back, <span class="splash-name">Nikhil</span></h1>
-    <p class="splash-quote" id="splashQuote"></p>
-    <div class="splash-stats">
-      <div class="splash-stat"><span id="splashDay">—</span><small>Day</small></div>
-      <div class="splash-stat"><span id="splashCountdown">—</span><small>Days Left</small></div>
-      <div class="splash-stat"><span id="splashXP">—</span><small>XP</small></div>
-    </div>
-    <button class="splash-btn" onclick="closeSplash()">Let's Go 🔥</button>
-  </div>
-</div>
-
-<!-- SVG Defs for ring gradient -->
-<svg style="display:none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" style="stop-color:#38bdf8"/><stop offset="100%" style="stop-color:#818cf8"/></linearGradient></defs></svg>
-
-<!-- CONFETTI CANVAS -->
-<canvas id="confettiCanvas"></canvas>
-
-<!-- TOAST -->
+<canvas id="confetti"></canvas>
 <div id="toast"></div>
 
-<!-- MILESTONE POPUP -->
-<div id="milestonePopup" class="milestone-popup hidden">
-  <div class="milestone-inner">
-    <div class="milestone-emoji" id="milestoneEmoji">🎉</div>
-    <div class="milestone-title" id="milestoneTitle">Milestone!</div>
-    <div class="milestone-sub" id="milestoneSub"></div>
-    <button onclick="closeMilestone()">Awesome! 💪</button>
-  </div>
-</div>
-
 <div class="shell">
-
-  <!-- SIDEBAR -->
+  <!-- ── SIDEBAR ── -->
   <aside class="sidebar">
     <div class="brand">
       <div class="brand-icon">N</div>
-      <div class="brand-text">
-        <span class="brand-name">Nikhil</span>
-        <span class="brand-sub">AI Engineer Path</span>
+      <div>
+        <div class="brand-name">WAR ROOM</div>
+        <div class="brand-sub">Nikhil · AI Engineer Path</div>
       </div>
     </div>
 
-    <!-- XP Bar -->
-    <div class="xp-bar-wrap">
-      <div class="xp-level-row">
-        <span id="xpLevel" class="xp-level">Beginner</span>
-        <span id="xpPoints" class="xp-pts">0 XP</span>
-      </div>
-      <div class="xp-track"><div id="xpBar" class="xp-fill"></div></div>
-      <div id="xpNext" class="xp-next">50 XP to next level</div>
+    <div class="sidebar-countdown">
+      <div class="sc-label">DAYS UNTIL SEP 8</div>
+      <div class="sc-num" id="sidebarDays">—</div>
+      <div class="sc-sub">The clock doesn't stop</div>
     </div>
 
     <nav class="sidebar-nav">
-      <button class="tab-btn active" data-tab="today">🏠 Today</button>
-      <button class="tab-btn" data-tab="weeks">📅 Timeline</button>
+      <button class="tab-btn active" data-tab="mission">🎯 Mission</button>
+      <button class="tab-btn" data-tab="ai">🤖 AI Track</button>
+      <button class="tab-btn" data-tab="dsa">📊 DSA Track</button>
       <button class="tab-btn" data-tab="projects">🚀 Projects</button>
       <button class="tab-btn" data-tab="jobs">💼 Jobs</button>
-      <button class="tab-btn" data-tab="log">📝 Log</button>
     </nav>
 
-    <!-- Countdown -->
-    <div class="countdown-box">
-      <div class="countdown-label">⏳ Days until Sep 8</div>
-      <div id="countdownDays" class="countdown-num">—</div>
+    <div class="sidebar-tracks">
+      <div class="st-row"><span class="st-dot" style="background:#818cf8"></span><span class="st-name">AI Track</span><span class="st-pct" id="sideAIPct">0%</span></div>
+      <div class="st-row"><span class="st-dot" style="background:#38bdf8"></span><span class="st-name">DSA Track</span><span class="st-pct" id="sideDSAPct">0%</span></div>
+      <div class="st-row"><span class="st-dot" style="background:#34d399"></span><span class="st-name">SQL Track</span><span class="st-pct" id="sideSQLPct">0%</span></div>
     </div>
 
-    <div class="sidebar-meta">
-      <div class="meta-row"><span>Target</span><span>AI / Data Eng</span></div>
-      <div class="meta-row"><span>Videos</span><span>311 total</span></div>
-      <div class="meta-row"><span>Projects</span><span>12 total</span></div>
+    <!-- Drive sync -->
+    <div class="drive-section">
+      <div id="syncIndicator" class="sync-indicator"><span class="sync-dot disconnected"></span> Not synced</div>
+      <div class="drive-btns">
+        <button id="connectDriveBtn" class="drive-btn" onclick="connectDrive()">🔗 Connect Drive</button>
+        <button id="syncBtn" class="drive-btn" style="display:none" onclick="syncToDrive()">☁️ Sync</button>
+        <button id="loadBtn" class="drive-btn" style="display:none" onclick="loadFromDrive()">⬇️ Load</button>
+      </div>
     </div>
 
-    <div class="sidebar-actions">
-      <button id="themeBtn" class="btn-ghost">☀️ Light</button>
-      <button onclick="exportData()" class="btn-ghost">📤 Export</button>
+    <div class="sidebar-bottom">
+      <button id="themeBtn" class="sb-btn">☀️ Light</button>
+      <button onclick="exportData()" class="sb-btn">📤 Export</button>
+      <button onclick="resetData()" class="sb-btn danger">🗑 Reset</button>
     </div>
   </aside>
 
-  <!-- MAIN -->
+  <!-- ── MAIN ── -->
   <main class="main">
-
-    <!-- STREAK BANNER (shows when streak >= 3) -->
-    <div id="streakBanner" class="streak-banner hidden">
-      🔥 <span id="streakBannerText"></span> — You're on fire!
+    <div id="tab-mission" class="tab-pane active">
+      <div id="mission-content"></div>
     </div>
-
-    <!-- TOP BAR -->
-    <header class="topbar">
-      <div class="topbar-left">
-        <span id="currentDay" class="topbar-day">📅 Day 1</span>
-        <span id="currentWeek" class="topbar-week">🚀 Week 1</span>
-      </div>
-      <div class="day-nav">
-        <button id="prevDayBtn" class="nav-btn">◀ Prev</button>
-        <input id="jumpInput" type="number" min="1" max="77" placeholder="Jump to day…" class="jump-input">
-        <button id="nextDayBtn" class="nav-btn">Next ▶</button>
-      </div>
-    </header>
-
-    <!-- TODAY TAB -->
-    <div id="tab-today" class="tab-pane active">
-      <div class="hero-row">
-        <!-- Progress Ring -->
-        <div class="card ring-card">
-          <h2 class="card-title">Overall Progress</h2>
-          <div class="ring-wrap">
-            <svg class="ring-svg" viewBox="0 0 160 160">
-              <circle cx="80" cy="80" r="70" class="ring-bg"/>
-              <circle cx="80" cy="80" r="70" id="progressRing" class="ring-fill"/>
-            </svg>
-            <span id="overallProgressPct" class="ring-label">0%</span>
-          </div>
-          <div class="streak-badge"><span id="streakCount">0</span> 🔥 streak</div>
-          <!-- Weekly Ring -->
-          <div class="weekly-ring-wrap">
-            <svg class="ring-svg-sm" viewBox="0 0 80 80">
-              <circle cx="40" cy="40" r="32" class="ring-bg"/>
-              <circle cx="40" cy="40" r="32" id="weeklyRing" class="ring-fill-green"/>
-            </svg>
-            <span id="weeklyRingLabel" class="ring-label-sm">0h</span>
-          </div>
-          <div class="weekly-ring-sub">This week's hours</div>
-        </div>
-
-        <!-- Today Mission -->
-        <div class="card mission-card">
-          <div class="card-title-row">
-            <h2 class="card-title">Today's Mission</h2>
-            <span id="todayDate" class="today-date"></span>
-          </div>
-          <div id="todayMission" class="mission-body">Loading…</div>
-          <div class="day-progress">
-            <div class="day-progress-header">
-              <span>Today's topics</span>
-              <span id="dayProgressPct">0%</span>
-            </div>
-            <div class="day-progress-track">
-              <div id="dayProgressBar" class="day-progress-fill"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Stats Row -->
-      <div class="stats-row">
-        <div class="stat-card" id="statVideos">
-          <div class="stat-icon">🎥</div>
-          <div class="stat-val" id="videosCompleted">0 / 311</div>
-          <div class="stat-lbl">Videos</div>
-        </div>
-        <div class="stat-card" id="statDays">
-          <div class="stat-icon">📅</div>
-          <div class="stat-val" id="daysCompleted">1 / 77</div>
-          <div class="stat-lbl">Days</div>
-        </div>
-        <div class="stat-card" id="statProjects">
-          <div class="stat-icon">🚀</div>
-          <div class="stat-val" id="projectsCompleted">0 / 12</div>
-          <div class="stat-lbl">Projects</div>
-        </div>
-        <div class="stat-card" id="statApps">
-          <div class="stat-icon">💼</div>
-          <div class="stat-val" id="applicationsCount">0</div>
-          <div class="stat-lbl">Applications</div>
-        </div>
-        <div class="stat-card" id="statXP">
-          <div class="stat-icon">⚡</div>
-          <div class="stat-val" id="xpDisplay">0</div>
-          <div class="stat-lbl">XP Earned</div>
-        </div>
-      </div>
-
-      <!-- Playlist Progress -->
-      <div class="card">
-        <h2 class="card-title">📚 Playlist Progress</h2>
-        <div id="playlistBars" class="playlist-bars"></div>
-      </div>
-
-      <!-- Checklist -->
-      <div class="card checklist-card">
-        <h2 class="card-title">✅ Today's Topic Checklist</h2>
-        <div id="videoChecklist" class="checklist-body"></div>
-      </div>
-
-      <!-- Heatmap -->
-      <div class="card">
-        <h2 class="card-title">🗓 Activity Heatmap</h2>
-        <div id="heatmap" class="heatmap-grid"></div>
-        <div class="heatmap-legend">
-          <span>Less</span>
-          <div class="heatmap-swatch s0"></div>
-          <div class="heatmap-swatch s1"></div>
-          <div class="heatmap-swatch s2"></div>
-          <div class="heatmap-swatch s3"></div>
-          <span>More</span>
-        </div>
-      </div>
-
-      <!-- Daily motivator -->
-      <div class="card motivator-card">
-        <div class="motivator-quote" id="motivatorQuote"></div>
-        <div class="motivator-sub" id="motivatorSub"></div>
-      </div>
+    <div id="tab-ai" class="tab-pane">
+      <div id="ai-content"></div>
     </div>
-
-    <!-- WEEKS TAB -->
-    <div id="tab-weeks" class="tab-pane">
-      <h2 class="section-title">📅 11-Week Timeline</h2>
-      <div id="weeksGrid" class="weeks-grid"></div>
+    <div id="tab-dsa" class="tab-pane">
+      <div id="dsa-content"></div>
     </div>
-
-    <!-- PROJECTS TAB -->
     <div id="tab-projects" class="tab-pane">
-      <h2 class="section-title">🚀 Project Portfolio</h2>
-      <div id="projectsGrid" class="projects-grid"></div>
+      <div id="projects-content"></div>
     </div>
-
-    <!-- JOBS TAB -->
     <div id="tab-jobs" class="tab-pane">
-      <div class="jobs-header-row">
-        <h2 class="section-title">💼 Job Tracker</h2>
-        <button class="add-job-btn" onclick="toggleJobForm()">+ Add Application</button>
+      <div class="jobs-topbar">
+        <h2 class="page-title">💼 Job Applications</h2>
+        <button class="add-btn" onclick="toggleJobForm()">+ Add Application</button>
       </div>
-
-      <!-- Job stats -->
-      <div class="job-stats-row" id="jobStatsRow"></div>
-
-      <!-- Add form -->
+      <div id="jobStatsRow" class="job-stats-row"></div>
       <div id="jobForm" class="job-form hidden">
-        <div class="job-form-grid">
-          <div class="form-group">
-            <label>Company *</label>
-            <input id="jCompany" type="text" placeholder="e.g. Google">
+        <div class="jf-grid">
+          <div class="fg"><label>Company *</label><input id="jCompany" type="text" placeholder="Google"></div>
+          <div class="fg"><label>Role *</label><input id="jRole" type="text" placeholder="ML Engineer"></div>
+          <div class="fg"><label>Date Applied</label><input id="jDate" type="date"></div>
+          <div class="fg"><label>Method</label>
+            <select id="jMethod"><option>LinkedIn</option><option>Direct</option><option>Referral</option><option>Email</option><option>Other</option></select>
           </div>
-          <div class="form-group">
-            <label>Role *</label>
-            <input id="jRole" type="text" placeholder="e.g. ML Engineer">
-          </div>
-          <div class="form-group">
-            <label>Date Applied</label>
-            <input id="jDate" type="date">
-          </div>
-          <div class="form-group">
-            <label>Method</label>
-            <select id="jMethod">
-              <option>LinkedIn</option>
-              <option>Direct</option>
-              <option>Referral</option>
-              <option>Email</option>
-              <option>Other</option>
-            </select>
-          </div>
-          <div class="form-group full-width">
-            <label>Notes</label>
-            <input id="jNotes" type="text" placeholder="Recruiter name, JD link, anything useful…">
-          </div>
+          <div class="fg full"><label>Notes</label><input id="jNotes" type="text" placeholder="Recruiter name, JD link, anything useful…"></div>
         </div>
-        <div class="form-actions">
-          <button class="log-save-btn" onclick="addJob()">💾 Save</button>
-          <button class="btn-ghost" onclick="toggleJobForm()">Cancel</button>
+        <div class="jf-actions">
+          <button class="save-btn" onclick="addJob()">💾 Save</button>
+          <button class="cancel-btn" onclick="toggleJobForm()">Cancel</button>
         </div>
       </div>
-
-      <!-- Kanban -->
-      <div class="kanban-board" id="kanbanBoard"></div>
+      <div id="kanbanBoard" class="kanban-board"></div>
     </div>
-
-    <!-- LOG TAB -->
-    <div id="tab-log" class="tab-pane">
-      <h2 class="section-title">📝 Daily Log</h2>
-      <div id="logContainer"></div>
-    </div>
-
   </main>
 </div>
+</body>
+</html>
+EOF
+echo "html done"
+Output
 
+html done
