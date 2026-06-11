@@ -1,665 +1,561 @@
+cat > /home/claude/war-room/js/app.js << 'JSEOF'
 let data = getData();
 
-// ─── XP System ────────────────────────────────────────────
-const XP_LEVELS = [
-  { name:"Beginner 🌱",     min:0    },
-  { name:"Learner 📚",      min:50   },
-  { name:"Coder 💻",        min:150  },
-  { name:"Builder 🔨",      min:300  },
-  { name:"ML Dev 🤖",       min:500  },
-  { name:"AI Engineer 🚀",  min:800  },
-  { name:"Legend 🏆",       min:1200 },
-];
-
-function getLevelInfo(xp) {
-  let level = XP_LEVELS[0];
-  for (const l of XP_LEVELS) { if (xp >= l.min) level = l; else break; }
-  const idx  = XP_LEVELS.indexOf(level);
-  const next = XP_LEVELS[idx + 1];
-  const pct  = next ? Math.round(((xp - level.min) / (next.min - level.min)) * 100) : 100;
-  return { level, next, pct };
+// ─── Utility ──────────────────────────────────────────────
+function setText(id, v) { const e=document.getElementById(id); if(e) e.textContent=v; }
+function showToast(msg) {
+  const t=document.getElementById("toast"); if(!t) return;
+  t.textContent=msg; t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"),2800);
+}
+function fireConfetti() {
+  const c=document.getElementById("confetti"); if(!c) return;
+  c.style.display="block";
+  const ctx=c.getContext("2d"); c.width=innerWidth; c.height=innerHeight;
+  const colors=["#38bdf8","#818cf8","#34d399","#f59e0b","#f87171","#fff"];
+  const p=Array.from({length:130},()=>({
+    x:Math.random()*c.width, y:Math.random()*c.height-c.height,
+    w:Math.random()*10+4, h:Math.random()*6+3,
+    color:colors[Math.floor(Math.random()*colors.length)],
+    dx:Math.random()*2-1, dy:Math.random()*4+2, dr:Math.random()*.2-.1, r:0
+  }));
+  let f=0;
+  function draw(){
+    ctx.clearRect(0,0,c.width,c.height);
+    p.forEach(p=>{ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.r);ctx.fillStyle=p.color;ctx.globalAlpha=.9;ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h);ctx.restore();p.y+=p.dy;p.x+=p.dx;p.r+=p.dr;});
+    f++; if(f<140) requestAnimationFrame(draw);
+    else {ctx.clearRect(0,0,c.width,c.height); c.style.display="none";}
+  }
+  draw();
 }
 
-function addXP(amount, reason) {
-  data.xp = (data.xp || 0) + amount;
-  saveData(data);
-  updateXPBar();
+// ─── Dates ────────────────────────────────────────────────
+function daysLeft()  { return Math.max(0,Math.ceil((new Date("2026-09-08")-new Date())/86400000)); }
+function getTodayAIDay() {
+  const diff = Math.floor((new Date()-new Date("2026-06-11"))/86400000)+1;
+  return Math.max(1,Math.min(77,diff));
 }
-
-function updateXPBar() {
-  const xp   = data.xp || 0;
-  const info = getLevelInfo(xp);
-  setText("xpLevel",   info.level.name);
-  setText("xpPoints",  xp + " XP");
-  setText("xpDisplay", xp);
-  setText("splashXP",  xp + " XP");
-  const bar = document.getElementById("xpBar");
-  if (bar) bar.style.width = info.pct + "%";
-  setText("xpNext", info.next ? `${info.next.min - xp} XP to ${info.next.name}` : "Max level! 🏆");
-}
-
-// ─── Splash ────────────────────────────────────────────────
-const SPLASH_QUOTES = [
-  "The only way out is through. Keep building.",
-  "Every expert was once a beginner who refused to quit.",
-  "You don't have to be great to start, but you have to start to be great.",
-  "One day or day one. You decide.",
-  "The pain of discipline is nothing compared to the pain of regret.",
-  "Stop waiting for motivation. Build the habit instead.",
-  "You're closer than you think. Don't stop now.",
-  "Hard work beats talent when talent doesn't work hard.",
-  "The grind you hate today is the story you'll love tomorrow.",
-  "Nobody remembers the person who almost did it.",
-  "Your future self is watching. Make them proud.",
-  "Every line of code you write today is a step toward your dream job.",
-  "Doubt kills more dreams than failure ever will.",
-  "You chose this path. Now walk it like you mean it.",
-  "Sep 8 is coming whether you're ready or not. Choose ready.",
-];
-
-function closeSplash() {
-  const splash = document.getElementById("splash");
-  splash.classList.add("fade-out");
-  setTimeout(() => splash.style.display = "none", 600);
-}
-
-function initSplash() {
-  const today     = new Date().toDateString();
-  const quoteIdx  = Math.abs(today.split("").reduce((a, c) => a + c.charCodeAt(0), 0)) % SPLASH_QUOTES.length;
-  setText("splashQuote",    SPLASH_QUOTES[quoteIdx]);
-  setText("splashDay",      `Day ${getDayNumber()}`);
-  setText("splashCountdown", daysUntilEnd());
-  updateXPBar();
-}
-
-// ─── Countdown ────────────────────────────────────────────
-function daysUntilEnd() {
-  const end  = new Date("2026-09-08");
-  const now  = new Date();
-  const diff = Math.ceil((end - now) / 86400000);
-  return Math.max(0, diff);
-}
-
-// ─── Navigation ───────────────────────────────────────────
-function nextDay() {
-  if (data.currentDay < ROADMAP.totalDays) { data.currentDay++; saveData(data); updateAll(); }
-}
-function previousDay() {
-  if (data.currentDay > 1) { data.currentDay--; saveData(data); updateAll(); }
-}
-function jumpToDay(n) {
-  data.currentDay = Math.max(1, Math.min(77, n));
-  saveData(data); updateAll();
-}
-function getDayNumber()  { return data.currentDay || 1; }
-function getWeekNumber() { return Math.min(11, Math.ceil(getDayNumber() / 7)); }
-function getStartDate()  { return new Date("2026-06-11"); }
 function getDayDate(n) {
-  const d = getStartDate();
-  d.setDate(d.getDate() + n - 1);
-  return d.toLocaleDateString("en-IN", { day:"numeric", month:"short", year:"numeric" });
+  const d=new Date("2026-06-11"); d.setDate(d.getDate()+n-1);
+  return d.toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"});
+}
+function updateStreak() {
+  const today=new Date().toDateString(), yest=new Date();
+  yest.setDate(yest.getDate()-1);
+  if(data.lastActiveDate!==today){
+    data.streak = data.lastActiveDate===yest.toDateString() ? (data.streak||0)+1 : 1;
+    data.lastActiveDate=today;
+  }
+}
+
+// ─── Tab switching ────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll(".tab-btn").forEach(b=>b.classList.remove("active"));
+  document.querySelectorAll(".tab-pane").forEach(p=>p.classList.remove("active"));
+  const btn=document.querySelector(`[data-tab="${tab}"]`);
+  const pane=document.getElementById(`tab-${tab}`);
+  if(btn)  btn.classList.add("active");
+  if(pane) pane.classList.add("active");
+  if(tab==="mission") renderMission();
+  if(tab==="dsa")     renderDSATab();
+  if(tab==="ai")      renderAITab();
+  if(tab==="projects")renderProjectsTab();
+  if(tab==="jobs")    renderJobsTab();
+}
+
+// ─── QUOTES ───────────────────────────────────────────────
+const WARROOM_QUOTES = [
+  { q:"The person who gets that job is grinding right now. What are you doing?", fire:true },
+  { q:"Sep 8 is fixed. The only variable is how prepared you show up.", fire:false },
+  { q:"Every algorithm you solve today is a question you'll answer in the interview.", fire:true },
+  { q:"You chose this path. Nobody forced you. Now walk it like you mean it.", fire:false },
+  { q:"Future Nikhil has the job, the salary, the life. He needs you to not quit today.", fire:true },
+  { q:"The grind you hate today is the story you'll love telling tomorrow.", fire:false },
+  { q:"Discomfort is the curriculum. Confusion means you're learning.", fire:true },
+  { q:"One more problem. One more video. One more day closer.", fire:false },
+  { q:"They didn't hire the smartest. They hired the most prepared.", fire:true },
+  { q:"Your GitHub is your resume. Every commit is an interview point.", fire:false },
+  { q:"You're not studying. You're becoming an AI Engineer.", fire:true },
+  { q:"Nobody remembers who almost made it. Finish what you started.", fire:false },
+];
+
+function getDailyQuote() {
+  const idx = Math.abs(new Date().toDateString().split("").reduce((a,c)=>a+c.charCodeAt(0),0)) % WARROOM_QUOTES.length;
+  return WARROOM_QUOTES[idx];
+}
+
+// ─── MISSION TAB ──────────────────────────────────────────
+function renderMission() {
+  const c = document.getElementById("mission-content");
+  if (!c) return;
+
+  const aiDay   = data.currentDay || getTodayAIDay();
+  const dsaDay  = data.dsaCurrentDay || 1;
+  const sqlDay  = data.sqlCurrentDay || 1;
+  const aiData  = ROADMAP.days[aiDay];
+  const dl      = daysLeft();
+  const quote   = getDailyQuote();
+  const streak  = data.streak || 0;
+
+  // Progress counts
+  const totalAI  = Object.values(ROADMAP.days).reduce((s,d)=>s+d.topics.length,0);
+  const doneAI   = (data.completedTopics||[]).length;
+  const aiPct    = Math.round((doneAI/totalAI)*100);
+  const doneDSA  = (data.dsaCompleted||[]).length;
+  const dsaPct   = Math.round((doneDSA/DSA_PLAN.totalProblems)*100);
+  const doneSql  = (data.sqlDays||[]).length;
+  const sqlPct   = Math.round((doneSql/30)*100);
+  const overallPct = Math.round((aiPct+dsaPct+sqlPct)/3);
+
+  // Today's AI topics
+  const aiTopics = aiData ? aiData.topics.map((t,i)=>{
+    const key=`d${aiDay}_${i}`, done=(data.completedTopics||[]).includes(key);
+    return `<label class="mission-check ${done?"done":""}">
+      <input type="checkbox" ${done?"checked":""} onchange="toggleAI('${key}')">
+      <span>${t}</span>
+    </label>`;
+  }).join("") : "";
+
+  // Today's DSA problems
+  const dsaProbs = [];
+  DSA_PLAN.topics.forEach(t=>t.subtopics.forEach(p=>{if(p.day===dsaDay)dsaProbs.push({...p,color:t.color});}));
+  const dsaHtml = dsaProbs.map(p=>{
+    const done=(data.dsaCompleted||[]).includes(p.id);
+    const dc=p.difficulty==="Easy"?"#34d399":p.difficulty==="Medium"?"#f59e0b":"#f87171";
+    return `<label class="mission-check ${done?"done":""}">
+      <input type="checkbox" ${done?"checked":""} onchange="toggleDSA('${p.id}')">
+      <span>${p.title}</span>
+      <span class="diff" style="color:${dc}">${p.difficulty}</span>
+      <a href="${p.link}" target="_blank" class="tuf">TUF↗</a>
+    </label>`;
+  }).join("") || `<div class="no-probs">No problems assigned for Day ${dsaDay}</div>`;
+
+  // SQL today
+  const sqlDone = (data.sqlDays||[]).includes(sqlDay);
+
+  // Urgency level
+  const urgColor = dl<=14?"#f87171":dl<=30?"#f59e0b":"#34d399";
+  const urgText  = dl<=14?"🚨 FINAL SPRINT":dl<=30?"⚡ CRUNCH TIME":"🔥 KEEP MOVING";
+
+  c.innerHTML = `
+    <!-- WAR BANNER -->
+    <div class="war-banner">
+      <div class="war-quote ${quote.fire?"fire-quote":""}">"${quote.q}"</div>
+      <div class="war-meta">
+        <span class="war-streak">${streak>0?`🔥 ${streak}-day streak`:"Start your streak today"}</span>
+        <span class="war-sep">·</span>
+        <span style="color:${urgColor};font-weight:700">${urgText}</span>
+      </div>
+    </div>
+
+    <!-- COUNTDOWN + OVERALL -->
+    <div class="mission-hero">
+      <div class="countdown-block">
+        <div class="cd-num" style="color:${urgColor}">${dl}</div>
+        <div class="cd-label">DAYS LEFT</div>
+        <div class="cd-sub">Sep 8, 2026</div>
+      </div>
+      <div class="overall-block">
+        <div class="overall-label">OVERALL PROGRESS</div>
+        <div class="overall-pct">${overallPct}%</div>
+        <div class="three-bars">
+          <div class="tbar">
+            <span class="tbar-lbl" style="color:#818cf8">🤖 AI</span>
+            <div class="tbar-track"><div class="tbar-fill" style="width:${aiPct}%;background:#818cf8"></div></div>
+            <span class="tbar-pct">${aiPct}%</span>
+          </div>
+          <div class="tbar">
+            <span class="tbar-lbl" style="color:#38bdf8">📊 DSA</span>
+            <div class="tbar-track"><div class="tbar-fill" style="width:${dsaPct}%;background:#38bdf8"></div></div>
+            <span class="tbar-pct">${dsaPct}%</span>
+          </div>
+          <div class="tbar">
+            <span class="tbar-lbl" style="color:#34d399">🗄️ SQL</span>
+            <div class="tbar-track"><div class="tbar-fill" style="width:${sqlPct}%;background:#34d399"></div></div>
+            <span class="tbar-pct">${sqlPct}%</span>
+          </div>
+        </div>
+      </div>
+      <div class="mission-stats-grid">
+        <div class="ms-stat"><div class="ms-num">${doneDSA}</div><div class="ms-lbl">DSA Solved</div></div>
+        <div class="ms-stat"><div class="ms-num">${doneAI}</div><div class="ms-lbl">AI Topics</div></div>
+        <div class="ms-stat"><div class="ms-num">${doneSql}</div><div class="ms-lbl">SQL Days</div></div>
+        <div class="ms-stat"><div class="ms-num">${(data.completedProjects||[]).length}</div><div class="ms-lbl">Projects</div></div>
+        <div class="ms-stat"><div class="ms-num">${(data.jobs||[]).length}</div><div class="ms-lbl">Apps Sent</div></div>
+        <div class="ms-stat"><div class="ms-num" style="color:${urgColor}">${dl}</div><div class="ms-lbl">Days Left</div></div>
+      </div>
+    </div>
+
+    <!-- TODAY'S TASKS — 3 COLUMNS -->
+    <div class="today-grid">
+
+      <!-- AI TRACK -->
+      <div class="today-card ai-card">
+        <div class="tc-header">
+          <div class="tc-icon" style="background:#818cf820;color:#818cf8">🤖</div>
+          <div class="tc-info">
+            <div class="tc-title">AI Track — Day ${aiDay}/77</div>
+            <div class="tc-sub">${aiData?.playlist||""} · ${aiData?.targetVideos||0} videos · ${aiData?.targetHours||0}h</div>
+          </div>
+          <div class="tc-nav">
+            <button onclick="changeAIDay(-1)" class="tcn-btn">◀</button>
+            <button onclick="changeAIDay(1)"  class="tcn-btn">▶</button>
+          </div>
+        </div>
+        <div class="tc-tasks">${aiTopics}</div>
+        <div class="tc-practice">🛠️ ${aiData?.practice||""}</div>
+      </div>
+
+      <!-- DSA TRACK -->
+      <div class="today-card dsa-card">
+        <div class="tc-header">
+          <div class="tc-icon" style="background:#38bdf820;color:#38bdf8">📊</div>
+          <div class="tc-info">
+            <div class="tc-title">DSA Track — Day ${dsaDay}/90</div>
+            <div class="tc-sub">Striver A2Z · ${dsaProbs.length} problems today</div>
+          </div>
+          <div class="tc-nav">
+            <button onclick="changeDSADay(-1)" class="tcn-btn">◀</button>
+            <button onclick="changeDSADay(1)"  class="tcn-btn">▶</button>
+          </div>
+        </div>
+        <div class="tc-tasks">${dsaHtml}</div>
+        <div class="tc-progress">${doneDSA}/${DSA_PLAN.totalProblems} total solved</div>
+      </div>
+
+      <!-- SQL TRACK -->
+      <div class="today-card sql-card">
+        <div class="tc-header">
+          <div class="tc-icon" style="background:#34d39920;color:#34d399">🗄️</div>
+          <div class="tc-info">
+            <div class="tc-title">SQL Track — Day ${sqlDay}/30</div>
+            <div class="tc-sub">1 focused hour · ${doneSql} days done</div>
+          </div>
+          <div class="tc-nav">
+            <button onclick="changeSQLDay(-1)" class="tcn-btn">◀</button>
+            <button onclick="changeSQLDay(1)"  class="tcn-btn">▶</button>
+          </div>
+        </div>
+        <label class="sql-big-check ${sqlDone?"done":""}">
+          <input type="checkbox" ${sqlDone?"checked":""} onchange="toggleSQL(${sqlDay})">
+          <div class="sql-check-body">
+            <div class="sql-check-title">${sqlDone?"✅ SQL hour done!":"Study SQL for 1 hour"}</div>
+            <div class="sql-check-sub">${sqlDone?"Great work. Come back tomorrow.":"Open SQLZOO, LeetCode SQL, or your notes."}</div>
+          </div>
+        </label>
+        <div class="sql-dots">
+          ${Array.from({length:30},(_,i)=>{
+            const d=i+1, done=(data.sqlDays||[]).includes(d), isNow=d===sqlDay;
+            return `<div class="sql-dot ${done?"done":""} ${isNow?"now":""}" title="Day ${d}" onclick="toggleSQL(${d})"></div>`;
+          }).join("")}
+        </div>
+        <div class="tc-progress">${doneSql}/30 days complete · ${30-doneSql} left</div>
+      </div>
+
+    </div>`;
+}
+
+// ─── Toggles ──────────────────────────────────────────────
+function toggleAI(key) {
+  const arr=data.completedTopics||[];
+  data.completedTopics = arr.includes(key) ? arr.filter(x=>x!==key) : [...arr,key];
+  updateStreak(); saveAndSync(data); renderMission();
+}
+function toggleDSA(id) {
+  const arr=data.dsaCompleted||[];
+  const adding = !arr.includes(id);
+  data.dsaCompleted = adding ? [...arr,id] : arr.filter(x=>x!==id);
+  if(adding) showToast("Problem solved! 💪");
+  updateStreak(); saveAndSync(data); renderMission();
+  const dsaPane=document.getElementById("tab-dsa");
+  if(dsaPane&&dsaPane.classList.contains("active")) renderDSATab();
+}
+function toggleSQL(day) {
+  const arr=data.sqlDays||[];
+  const adding = !arr.includes(day);
+  data.sqlDays = adding ? [...arr,day] : arr.filter(x=>x!==day);
+  if(adding) showToast("SQL hour logged! 🗄️");
+  updateStreak(); saveAndSync(data); renderMission();
+}
+function changeAIDay(d) {
+  data.currentDay=Math.max(1,Math.min(77,(data.currentDay||1)+d));
+  saveAndSync(data); renderMission();
+  const p=document.getElementById("tab-ai"); if(p&&p.classList.contains("active")) renderAITab();
+}
+function changeDSADay(d) {
+  data.dsaCurrentDay=Math.max(1,Math.min(90,(data.dsaCurrentDay||1)+d));
+  saveAndSync(data); renderMission();
+  const p=document.getElementById("tab-dsa"); if(p&&p.classList.contains("active")) renderDSATab();
+}
+function changeSQLDay(d) {
+  data.sqlCurrentDay=Math.max(1,Math.min(30,(data.sqlCurrentDay||1)+d));
+  saveAndSync(data); renderMission();
+}
+
+// ─── AI TAB ───────────────────────────────────────────────
+function renderAITab() {
+  const c=document.getElementById("ai-content"); if(!c) return;
+  const day=data.currentDay||1, aiData=ROADMAP.days[day], cw=Math.min(11,Math.ceil(day/7));
+
+  const totalAI=Object.values(ROADMAP.days).reduce((s,d)=>s+d.topics.length,0);
+  const doneAI=(data.completedTopics||[]).length;
+  const aiPct=Math.round((doneAI/totalAI)*100);
+
+  // Playlist bars
+  const plColors={"Sheryians":"#f59e0b","100 Days ML":"#38bdf8","100 Days DL":"#818cf8","NLP":"#fb7185","LangChain":"#f59e0b","LangGraph":"#34d399","FastAPI":"#06d6a0","MCP":"#a78bfa","Revision":"#94a3b8","Interview Prep":"#f87171"};
+  const plBars = ROADMAP.playlists.map(pl=>{
+    const plDays=Object.entries(ROADMAP.days).filter(([,d])=>d.playlist===pl.name);
+    const tot=plDays.reduce((s,[,d])=>s+d.topics.length,0);
+    const done=plDays.reduce((s,[dn,d])=>s+d.topics.filter((_,i)=>(data.completedTopics||[]).includes(`d${dn}_${i}`)).length,0);
+    const pct=tot?Math.round((done/tot)*100):0;
+    const col=plColors[pl.name]||"#38bdf8";
+    return `<div class="pl-row">
+      <span class="pl-name">${pl.name}</span>
+      <div class="pl-bar"><div class="pl-fill" style="width:${pct}%;background:${col}"></div></div>
+      <span class="pl-pct" style="color:${col}">${pct}%</span>
+    </div>`;
+  }).join("");
+
+  // Checklist
+  const checks = aiData ? aiData.topics.map((t,i)=>{
+    const key=`d${day}_${i}`, done=(data.completedTopics||[]).includes(key);
+    return `<label class="ai-check ${done?"done":""}">
+      <input type="checkbox" ${done?"checked":""} onchange="toggleAI('${key}')">
+      <span>${t}</span>
+      ${done?'<span class="ai-tick">✓</span>':""}
+    </label>`;
+  }).join("") : "";
+
+  // Weeks grid
+  const weeks = Object.entries(ROADMAP.weeks).map(([wn,wk])=>{
+    const w=parseInt(wn);
+    const wDays=Array.from({length:7},(_,i)=>(w-1)*7+1+i).filter(d=>d<=77);
+    const tot=wDays.reduce((s,d)=>s+(ROADMAP.days[d]?.topics?.length||0),0);
+    const done=wDays.reduce((s,d)=>{
+      if(!ROADMAP.days[d]) return s;
+      return s+ROADMAP.days[d].topics.filter((_,i)=>(data.completedTopics||[]).includes(`d${d}_${i}`)).length;
+    },0);
+    const pct=tot?Math.round((done/tot)*100):0;
+    const cur=w===cw, past=w<cw;
+    return `<div class="wk-card ${cur?"cur":""} ${past?"past":""}">
+      <div class="wk-top">
+        <span class="wk-num">Week ${w}</span>
+        <span class="wk-badge">${past?"✅":cur?"🔥 NOW":"⏳"}</span>
+        <span class="wk-pct">${pct}%</span>
+      </div>
+      <div class="wk-pl">${wk.playlist}</div>
+      <div class="wk-dates">${wk.dateRange}</div>
+      <div class="wk-bar"><div class="wk-fill" style="width:${pct}%"></div></div>
+      <div class="wk-del">🎯 ${wk.deliverable}</div>
+    </div>`;
+  }).join("");
+
+  c.innerHTML = `
+    <div class="ai-header">
+      <div class="ai-nav-row">
+        <button onclick="changeAIDay(-1)" class="nav-btn">◀ Prev</button>
+        <div class="ai-day-info">
+          <span class="ai-day-num">Day ${day}</span>
+          <span class="ai-day-date">${getDayDate(day)}</span>
+        </div>
+        <button onclick="changeAIDay(1)" class="nav-btn">Next ▶</button>
+        <input type="number" min="1" max="77" placeholder="Jump…" class="jump-inp"
+          onchange="data.currentDay=Math.max(1,Math.min(77,parseInt(this.value)));saveAndSync(data);renderAITab();">
+      </div>
+      <div class="ai-overall-bar">
+        <span class="ai-ovlbl">Overall AI Progress</span>
+        <div class="ai-ov-track"><div class="ai-ov-fill" style="width:${aiPct}%"></div></div>
+        <span class="ai-ovpct">${aiPct}%</span>
+      </div>
+    </div>
+    <div class="section-card">
+      <div class="sc-title">📺 ${aiData?.playlist||""} — Day ${day} Topics
+        <span class="sc-sub">🛠️ ${aiData?.practice||""} · 🎥 ${aiData?.targetVideos||0} videos · ⏰ ${aiData?.targetHours||0}h</span>
+      </div>
+      <div class="ai-checks">${checks}</div>
+    </div>
+    <div class="section-card">
+      <div class="sc-title">📚 Playlist Progress</div>
+      <div class="pl-bars">${plBars}</div>
+    </div>
+    <div class="section-card">
+      <div class="sc-title">🗓️ 11-Week Timeline</div>
+      <div class="weeks-grid">${weeks}</div>
+    </div>`;
+}
+
+// ─── DSA TAB ──────────────────────────────────────────────
+function renderDSATab() {
+  const c=document.getElementById("dsa-content"); if(!c) return;
+  const done=(data.dsaCompleted||[]).length, total=DSA_PLAN.totalProblems;
+  const pct=Math.round((done/total)*100), dsaDay=data.dsaCurrentDay||1;
+
+  const steps = DSA_PLAN.topics.map(topic=>{
+    const td=topic.subtopics.filter(p=>(data.dsaCompleted||[]).includes(p.id)).length;
+    const tp=Math.round((td/topic.subtopics.length)*100);
+    const hasToday=topic.subtopics.some(p=>p.day===dsaDay);
+    return `<div class="dsa-step ${hasToday?"has-today":""}">
+      <div class="dsa-step-hdr" onclick="toggleStep('ds-${topic.step}','dc-${topic.step}')">
+        <div class="dsa-sl">
+          <span class="dsa-icon">${topic.icon}</span>
+          <div>
+            <div class="dsa-stitle" style="color:${topic.color}">${topic.title}</div>
+            <div class="dsa-smeta">Days ${topic.days} · ${topic.subtopics.length} problems</div>
+          </div>
+        </div>
+        <div class="dsa-sr">
+          <div class="dsa-sbar"><div class="dsa-sfill" style="width:${tp}%;background:${topic.color}"></div></div>
+          <span class="dsa-spct" style="color:${topic.color}">${tp}%</span>
+          <span class="dsa-sdone">${td}/${topic.subtopics.length}</span>
+          <span id="dc-${topic.step}" class="dsa-chev">${hasToday?"▲":"▼"}</span>
+        </div>
+      </div>
+      <div id="ds-${topic.step}" class="dsa-probs ${hasToday?"":"hidden"}">
+        ${topic.subtopics.map(p=>{
+          const done=(data.dsaCompleted||[]).includes(p.id), isToday=p.day===dsaDay;
+          const dc=p.difficulty==="Easy"?"#34d399":p.difficulty==="Medium"?"#f59e0b":"#f87171";
+          return `<div class="dsa-prow ${done?"done":""} ${isToday?"today":""}">
+            <label class="dsa-plabel">
+              <input type="checkbox" ${done?"checked":""} onchange="toggleDSA('${p.id}')">
+              <span>${p.title}</span>
+            </label>
+            <div class="dsa-pmeta">
+              ${isToday?`<span class="today-tag">TODAY</span>`:`<span class="day-tag">D${p.day}</span>`}
+              <span class="diff-tag" style="color:${dc};background:${dc}18">${p.difficulty}</span>
+              <a href="${p.link}" target="_blank" class="tuf-a">TUF↗</a>
+            </div>
+          </div>`;
+        }).join("")}
+      </div>
+    </div>`;
+  }).join("");
+
+  c.innerHTML = `
+    <div class="dsa-hdr">
+      <div class="dsa-overall">
+        <div class="dsa-big-num">${done}<span>/${total}</span></div>
+        <div class="dsa-big-lbl">Problems Solved</div>
+        <div class="dsa-ov-bar"><div class="dsa-ov-fill" style="width:${pct}%"></div></div>
+        <div class="dsa-ov-pct">${pct}% of Striver A2Z Complete</div>
+      </div>
+      <div class="dsa-day-ctrl">
+        <div class="ddc-label">DSA Day</div>
+        <div class="ddc-row">
+          <button onclick="changeDSADay(-1)" class="nav-btn">◀</button>
+          <span class="ddc-num">Day ${dsaDay}/90</span>
+          <button onclick="changeDSADay(1)" class="nav-btn">▶</button>
+        </div>
+        <div class="ddc-sub">Striver A2Z Sheet</div>
+      </div>
+    </div>
+    <div class="dsa-steps">${steps}</div>`;
+}
+
+function toggleStep(id,chevId) {
+  const el=document.getElementById(id), cv=document.getElementById(chevId);
+  if(el) el.classList.toggle("hidden");
+  if(cv) cv.textContent = el.classList.contains("hidden")?"▼":"▲";
+}
+
+// ─── PROJECTS TAB ─────────────────────────────────────────
+function renderProjectsTab() {
+  const c=document.getElementById("projects-content"); if(!c) return;
+  c.innerHTML = `<div class="projects-grid">` +
+  ROADMAP.projects.map(p=>{
+    const done=(data.completedProjects||[]).includes(p.id);
+    const links=(data.projectLinks||{})[p.id]||{};
+    return `<div class="proj-card ${done?"done":""}">
+      <div class="proj-hdr">
+        <span class="proj-id">P${String(p.id).padStart(2,"0")}</span>
+        <span class="proj-wk">Week ${p.week}</span>
+        ${done?'<span class="proj-shipped">✅ SHIPPED</span>':""}
+      </div>
+      <div class="proj-name">${p.name}</div>
+      <div class="proj-links">
+        <input class="proj-inp" type="text" placeholder="GitHub URL" value="${links.github||""}"
+          onchange="saveProjectLink(${p.id},'github',this.value)">
+        <input class="proj-inp" type="text" placeholder="Live Demo URL" value="${links.demo||""}"
+          onchange="saveProjectLink(${p.id},'demo',this.value)">
+      </div>
+      <button class="proj-btn ${done?"done":""}" onclick="toggleProject(${p.id})">
+        ${done?"✅ Mark Incomplete":"⬜ Mark as Shipped"}
+      </button>
+    </div>`;
+  }).join("") + `</div>`;
+}
+function toggleProject(id) {
+  const arr=data.completedProjects||[];
+  data.completedProjects = arr.includes(id) ? arr.filter(x=>x!==id) : [...arr,id];
+  if(!arr.includes(id)) { fireConfetti(); showToast("🚀 Project shipped!"); }
+  saveAndSync(data); renderProjectsTab();
+}
+function saveProjectLink(id,type,val) {
+  data.projectLinks=data.projectLinks||{};
+  data.projectLinks[id]=data.projectLinks[id]||{};
+  data.projectLinks[id][type]=val;
+  saveAndSync(data);
 }
 
 // ─── Theme ────────────────────────────────────────────────
 function toggleTheme() {
   document.body.classList.toggle("light");
-  data.darkMode = !document.body.classList.contains("light");
-  document.getElementById("themeBtn").textContent = data.darkMode ? "☀️ Light" : "🌙 Dark";
-  saveData(data);
-}
-
-// ─── Tab switching ────────────────────────────────────────
-function switchTab(tab) {
-  document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
-  document.querySelectorAll(".tab-pane").forEach(p => { p.classList.remove("active"); p.classList.remove("entering"); });
-  document.querySelector(`[data-tab="${tab}"]`).classList.add("active");
-  const pane = document.getElementById(`tab-${tab}`);
-  pane.classList.add("active");
-  requestAnimationFrame(() => pane.classList.add("entering"));
-  if (tab === "weeks")    renderWeeksTab();
-  if (tab === "projects") renderProjectsTab();
-  if (tab === "log")      renderLogTab();
-  if (tab === "jobs")     { renderKanban(); renderJobStats(); }
-}
-
-// ─── Checklist ────────────────────────────────────────────
-function renderChecklist() {
-  const dayData   = ROADMAP.days[getDayNumber()];
-  const container = document.getElementById("videoChecklist");
-  if (!container || !dayData) return;
-  container.innerHTML = "";
-  dayData.topics.forEach(topic => {
-    const key     = `d${getDayNumber()}_${topic}`;
-    const checked = data.completedTopics.includes(key);
-    const div     = document.createElement("div");
-    div.className = "check-item" + (checked ? " done" : "");
-    div.innerHTML = `<label><input type="checkbox" ${checked ? "checked" : ""} onchange="toggleTopic('${key}')"><span class="check-label">${topic}</span></label>`;
-    container.appendChild(div);
-  });
-}
-
-function toggleTopic(key) {
-  if (data.completedTopics.includes(key)) {
-    data.completedTopics = data.completedTopics.filter(t => t !== key);
-    data.videosCompleted  = Math.max(0, data.videosCompleted - 1);
-  } else {
-    data.completedTopics.push(key);
-    data.videosCompleted++;
-    addXP(5, "Topic completed");
-  }
-  updateStreak();
-  saveData(data);
-  updateAll();
-  checkMilestones();
-}
-
-// ─── Projects ─────────────────────────────────────────────
-function renderProjectsTab() {
-  const container = document.getElementById("projectsGrid");
-  if (!container) return;
-  container.innerHTML = "";
-  ROADMAP.projects.forEach(p => {
-    const done = data.completedProjects.includes(p.id);
-    const div  = document.createElement("div");
-    div.className = "project-card" + (done ? " done" : "");
-    div.innerHTML = `
-      <div class="project-header">
-        <span class="project-id">P${String(p.id).padStart(2,"0")}</span>
-        <span class="project-week">Week ${p.week}</span>
-      </div>
-      <div class="project-name">${p.name}</div>
-      <button class="project-toggle" onclick="toggleProject(${p.id})">${done ? "✅ Completed" : "⬜ Mark Done"}</button>`;
-    container.appendChild(div);
-  });
-}
-
-function toggleProject(id) {
-  if (data.completedProjects.includes(id)) {
-    data.completedProjects = data.completedProjects.filter(x => x !== id);
-  } else {
-    data.completedProjects.push(id);
-    addXP(50, "Project completed! 🚀");
-    fireConfetti();
-    showMilestone("🚀", "Project Completed!", ROADMAP.projects.find(p=>p.id===id)?.name || "");
-  }
-  saveData(data); updateAll(); renderProjectsTab();
-}
-
-// ─── Weeks ────────────────────────────────────────────────
-function renderWeeksTab() {
-  const container   = document.getElementById("weeksGrid");
-  if (!container) return;
-  container.innerHTML = "";
-  const cw = getWeekNumber();
-  Object.entries(ROADMAP.weeks).forEach(([wNum, week]) => {
-    const wn = parseInt(wNum);
-    const div = document.createElement("div");
-    div.className = `week-card ${wn === cw ? "current" : ""} ${wn < cw ? "past" : ""}`;
-    div.innerHTML = `
-      <div class="week-header"><span class="week-label">Week ${wn}</span><span class="week-badge">${wn<cw?"✅":wn===cw?"🔥 Now":"⏳"}</span></div>
-      <div class="week-playlist">${week.playlist}</div>
-      <div class="week-dates">${week.dateRange}</div>
-      <div class="week-meta"><span>🎥 ${week.targetVideos} videos</span><span>⏰ ${week.targetHours}h</span></div>
-      <div class="week-deliverable">📦 ${week.deliverable}</div>`;
-    container.appendChild(div);
-  });
-}
-
-// ─── Heatmap ──────────────────────────────────────────────
-function renderHeatmap() {
-  const container = document.getElementById("heatmap");
-  if (!container) return;
-  container.innerHTML = "";
-  for (let d = 1; d <= 77; d++) {
-    const keys      = (ROADMAP.days[d]?.topics || []).map(t => `d${d}_${t}`);
-    const done      = keys.filter(k => data.completedTopics.includes(k)).length;
-    const total     = keys.length;
-    const hasHours  = parseFloat((data.hoursPerDay||{})[d]) > 0;
-    let level = 0;
-    if (done > 0 || hasHours) level = 1;
-    if (done >= Math.ceil(total * 0.5)) level = 2;
-    if (done === total && total > 0) level = 3;
-    const cell = document.createElement("div");
-    cell.className  = `heatmap-cell s${level}`;
-    cell.title      = `Day ${d}: ${done}/${total} topics${hasHours ? " + hours logged" : ""}`;
-    cell.onclick    = () => jumpToDay(d);
-    container.appendChild(cell);
-  }
-}
-
-// ─── Playlist bars ────────────────────────────────────────
-function renderPlaylistBars() {
-  const container = document.getElementById("playlistBars");
-  if (!container) return;
-  container.innerHTML = "";
-  ROADMAP.playlists.forEach(pl => {
-    // count completed topics that belong to this playlist
-    let total = 0, done = 0;
-    for (let d = 1; d <= 77; d++) {
-      const day = ROADMAP.days[d];
-      if (!day || day.playlist !== pl.name) continue;
-      total += day.topics.length;
-      done  += day.topics.filter(t => data.completedTopics.includes(`d${d}_${t}`)).length;
-    }
-    const pct = total ? Math.round((done / total) * 100) : 0;
-    container.innerHTML += `
-      <div class="pl-bar-row">
-        <span class="pl-name">${pl.name}</span>
-        <div class="pl-track"><div class="pl-fill" style="width:${pct}%"></div></div>
-        <span class="pl-pct">${pct}%</span>
-      </div>`;
-  });
-}
-
-// ─── Log Tab ──────────────────────────────────────────────
-function renderLogTab() {
-  const container = document.getElementById("logContainer");
-  if (!container) return;
-  const day     = getDayNumber();
-  const dayData = ROADMAP.days[day];
-  const note    = (data.notes||{})[day] || "";
-  const hours   = (data.hoursPerDay||{})[day] || "";
-  const totalH  = Object.values(data.hoursPerDay||{}).reduce((s,h)=>s+(parseFloat(h)||0),0).toFixed(1);
-
-  // notes history
-  const allNotes = Object.entries(data.notes||{}).filter(([,v])=>v&&v.trim()).sort(([a],[b])=>parseInt(b)-parseInt(a));
-  const notesHtml = allNotes.length === 0
-    ? `<p class="no-entries">No notes yet. Write your first one! 📝</p>`
-    : allNotes.map(([dn, text]) => {
-        const d = ROADMAP.days[dn];
-        const cur = parseInt(dn) === day;
-        return `<div class="log-entry ${cur?"entry-current":""}">
-          <div class="entry-header">
-            <span class="entry-day-badge">Day ${dn}</span>
-            <span class="entry-date">${getDayDate(parseInt(dn))}</span>
-            ${d?`<span class="entry-meta">🛠️ ${d.practice}</span>`:""}
-            <button class="entry-delete" onclick="deleteNote(${dn})">🗑</button>
-          </div>
-          <div class="entry-body">${text.replace(/\n/g,"<br>")}</div>
-        </div>`;
-      }).join("");
-
-  // hours history + weekly chart
-  const allHoursEntries = Object.entries(data.hoursPerDay||{}).filter(([,v])=>parseFloat(v)>0).sort(([a],[b])=>parseInt(b)-parseInt(a));
-  const hoursHtml = allHoursEntries.length === 0
-    ? `<p class="no-entries">No hours logged yet. Start tracking! ⏱</p>`
-    : allHoursEntries.map(([dn, h]) => {
-        const d   = ROADMAP.days[dn];
-        const cur = parseInt(dn) === day;
-        const pct = Math.min(100, Math.round((parseFloat(h)/8)*100));
-        return `<div class="log-entry ${cur?"entry-current":""}">
-          <div class="entry-header">
-            <span class="entry-day-badge">Day ${dn}</span>
-            <span class="entry-date">${getDayDate(parseInt(dn))}</span>
-            ${d?`<span class="entry-meta">${d.playlist}</span>`:""}
-            <span class="entry-hours-val">${h}h</span>
-            <button class="entry-delete" onclick="deleteHours(${dn})">🗑</button>
-          </div>
-          <div class="hours-bar-track"><div class="hours-bar-fill" style="width:${pct}%"></div></div>
-        </div>`;
-      }).join("");
-
-  // weekly bar chart (current week days)
-  const weekStart = (getWeekNumber() - 1) * 7 + 1;
-  const weekDays  = Array.from({length:7}, (_,i) => weekStart + i).filter(d => d <= 77);
-  const maxH      = Math.max(1, ...weekDays.map(d => parseFloat((data.hoursPerDay||{})[d])||0));
-  const weekBars  = weekDays.map(d => {
-    const h   = parseFloat((data.hoursPerDay||{})[d])||0;
-    const pct = Math.round((h/maxH)*100);
-    const cur = d === day;
-    return `<div class="week-bar-col">
-      <div class="week-bar-val">${h>0?h+"h":""}</div>
-      <div class="week-bar-track"><div class="week-bar-fill ${cur?"cur":""}" style="height:${pct}%"></div></div>
-      <div class="week-bar-lbl">D${d}</div>
-    </div>`;
-  }).join("");
-
-  // recent jobs preview
-  const recentJobs = (data.jobs||[]).slice(0,3);
-  const jobsPreview = recentJobs.length === 0
-    ? `<p class="no-entries">No applications yet. <button class="link-btn" onclick="switchTab('jobs')">Go to Job Tracker →</button></p>`
-    : recentJobs.map(j => `
-        <div class="log-entry">
-          <div class="entry-header">
-            <span class="entry-day-badge" style="background:${STATUS_COLORS[j.status]}22;color:${STATUS_COLORS[j.status]}">${j.status}</span>
-            <span class="entry-date">${j.company}</span>
-            <span class="entry-meta">${j.role}</span>
-            <button class="link-btn" onclick="switchTab('jobs')">View all →</button>
-          </div>
-        </div>`).join("");
-
-  container.innerHTML = `
-    <div class="log-section">
-      <div class="log-section-title">📝 Day ${day} Notes <span class="log-section-sub">${getDayDate(day)}</span></div>
-      ${dayData?`<p class="log-practice">Practice: <strong>${dayData.practice}</strong></p>`:""}
-      <textarea id="noteInput" class="log-textarea" placeholder="What did you learn? Thoughts, blockers, wins…">${note}</textarea>
-      <button class="log-save-btn" onclick="saveNote()">💾 Save Note</button>
-    </div>
-
-    <div class="log-section">
-      <div class="log-section-title">⏱ Hours — Day ${day} <span class="log-section-sub">Total: ${totalH}h</span></div>
-      <div class="hours-input-row">
-        <input type="number" id="hoursInput" class="hours-input" min="0" max="24" step="0.5" placeholder="Hours today (e.g. 4.5)" value="${hours}">
-        <button class="log-save-btn" onclick="logHours()">⏱ Save</button>
-      </div>
-      <div class="week-bar-chart">${weekBars}</div>
-    </div>
-
-    <div class="log-section">
-      <div class="log-section-title">💼 Applications <span class="log-section-sub">${(data.jobs||[]).length} total</span></div>
-      ${jobsPreview}
-    </div>
-
-    <div class="log-section">
-      <div class="log-section-title">📚 Notes History <span class="log-count-badge">${allNotes.length}</span></div>
-      <div class="entries-list">${notesHtml}</div>
-    </div>
-
-    <div class="log-section">
-      <div class="log-section-title">📊 Hours History <span class="log-count-badge">${allHoursEntries.length} days</span> <span class="log-section-sub">${totalH}h total</span></div>
-      <div class="entries-list">${hoursHtml}</div>
-    </div>
-
-    <div class="log-section danger-zone">
-      <div class="log-section-title danger-title">⚠️ Danger Zone</div>
-      <p class="danger-desc">Permanently delete ALL progress. Cannot be undone.</p>
-      <button class="reset-btn" onclick="resetData()">🗑 Reset All Progress</button>
-    </div>`;
-}
-
-function saveNote() {
-  const val = document.getElementById("noteInput").value;
-  if (!val.trim()) { showToast("Nothing to save!"); return; }
-  if (!data.notes) data.notes = {};
-  data.notes[getDayNumber()] = val;
-  addXP(2, "Note saved");
-  saveData(data); showToast("Note saved! 📝"); renderLogTab();
-}
-function deleteNote(dn) {
-  if (!confirm(`Delete note for Day ${dn}?`)) return;
-  delete data.notes[dn]; saveData(data); showToast("Deleted 🗑"); renderLogTab();
-}
-function logHours() {
-  const h = parseFloat(document.getElementById("hoursInput").value);
-  if (isNaN(h)||h<0) { showToast("Enter valid hours"); return; }
-  if (!data.hoursPerDay) data.hoursPerDay = {};
-  data.hoursPerDay[getDayNumber()] = h;
-  addXP(h >= 4 ? 15 : h >= 2 ? 8 : 3, "Hours logged");
-  saveData(data); showToast(`${h}h saved for Day ${getDayNumber()} 🔥`); renderLogTab();
-  updateWeeklyRing();
-}
-function deleteHours(dn) {
-  if (!confirm(`Delete hours for Day ${dn}?`)) return;
-  delete data.hoursPerDay[dn]; saveData(data); showToast("Deleted 🗑"); renderLogTab();
-}
-
-// ─── Milestones ───────────────────────────────────────────
-const MILESTONES = [
-  { key:"p25",  pct:25,  emoji:"⚡", title:"25% Done!",   sub:"Quarter of the way there. Keep going!" },
-  { key:"p50",  pct:50,  emoji:"🔥", title:"Halfway!",    sub:"You've done half the roadmap. Incredible!" },
-  { key:"p75",  pct:75,  emoji:"🚀", title:"75% Done!",   sub:"Almost there. Don't stop now!" },
-  { key:"p100", pct:100, emoji:"🏆", title:"COMPLETE!",   sub:"You finished the entire roadmap. LEGEND!" },
-];
-
-function checkMilestones() {
-  const pct = Math.round((data.videosCompleted / ROADMAP.totalVideos) * 100);
-  MILESTONES.forEach(m => {
-    if (pct >= m.pct && !(data.milestonesShown||[]).includes(m.key)) {
-      data.milestonesShown = [...(data.milestonesShown||[]), m.key];
-      addXP(100, m.title);
-      saveData(data);
-      showMilestone(m.emoji, m.title, m.sub);
-      fireConfetti();
-    }
-  });
-}
-
-function showMilestone(emoji, title, sub) {
-  setText("milestoneEmoji", emoji);
-  setText("milestoneTitle", title);
-  setText("milestoneSub",   sub);
-  document.getElementById("milestonePopup").classList.remove("hidden");
-}
-function closeMilestone() {
-  document.getElementById("milestonePopup").classList.add("hidden");
-}
-
-// ─── Confetti ─────────────────────────────────────────────
-function fireConfetti() {
-  const canvas = document.getElementById("confettiCanvas");
-  if (!canvas) return;
-  canvas.style.display = "block";
-  const ctx   = canvas.getContext("2d");
-  canvas.width  = window.innerWidth;
-  canvas.height = window.innerHeight;
-  const pieces = Array.from({length:120}, () => ({
-    x: Math.random() * canvas.width,
-    y: Math.random() * -canvas.height,
-    w: 6 + Math.random() * 8,
-    h: 3 + Math.random() * 5,
-    r: Math.random() * Math.PI * 2,
-    dr: (Math.random() - 0.5) * 0.2,
-    dy: 2 + Math.random() * 4,
-    dx: (Math.random() - 0.5) * 2,
-    color: ["#38bdf8","#818cf8","#34d399","#f59e0b","#f87171","#fb7185"][Math.floor(Math.random()*6)],
-  }));
-  let frame = 0;
-  function draw() {
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    pieces.forEach(p => {
-      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r);
-      ctx.fillStyle = p.color;
-      ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
-      ctx.restore();
-      p.y += p.dy; p.x += p.dx; p.r += p.dr;
-    });
-    frame++;
-    if (frame < 120) requestAnimationFrame(draw);
-    else { ctx.clearRect(0,0,canvas.width,canvas.height); canvas.style.display="none"; }
-  }
-  draw();
-}
-
-// ─── Streak ───────────────────────────────────────────────
-function updateStreak() {
-  const today     = new Date().toDateString();
-  const yesterday = new Date(); yesterday.setDate(yesterday.getDate()-1);
-  if (data.lastActiveDate !== today) {
-    data.streak = data.lastActiveDate === yesterday.toDateString() ? (data.streak||0)+1 : 1;
-    data.lastActiveDate = today;
-  }
-}
-
-// ─── Weekly ring ──────────────────────────────────────────
-function updateWeeklyRing() {
-  const wStart = (getWeekNumber()-1)*7+1;
-  const wDays  = Array.from({length:7},(_,i)=>wStart+i).filter(d=>d<=77);
-  const weekH  = wDays.reduce((s,d)=>s+(parseFloat((data.hoursPerDay||{})[d])||0),0);
-  const target = ROADMAP.weeks[getWeekNumber()]?.targetHours || 20;
-  const pct    = Math.min(100, Math.round((weekH/target)*100));
-  const ring   = document.getElementById("weeklyRing");
-  if (ring) {
-    const c = 2*Math.PI*32;
-    ring.style.strokeDasharray  = c;
-    ring.style.strokeDashoffset = c - (pct/100)*c;
-  }
-  setText("weeklyRingLabel", weekH.toFixed(1)+"h");
-}
-
-// ─── Export ───────────────────────────────────────────────
-function exportData() {
-  const lines = ["# Nikhil AI Roadmap — Export", `Date: ${new Date().toLocaleDateString()}`, ""];
-  lines.push("## HOURS LOG");
-  Object.entries(data.hoursPerDay||{}).sort(([a],[b])=>parseInt(a)-parseInt(b)).forEach(([d,h])=>{
-    lines.push(`Day ${d} (${getDayDate(parseInt(d))}): ${h}h`);
-  });
-  lines.push(`\nTotal Hours: ${Object.values(data.hoursPerDay||{}).reduce((s,h)=>s+(parseFloat(h)||0),0).toFixed(1)}h`);
-  lines.push("\n## NOTES");
-  Object.entries(data.notes||{}).sort(([a],[b])=>parseInt(a)-parseInt(b)).forEach(([d,n])=>{
-    lines.push(`\n### Day ${d} — ${getDayDate(parseInt(d))}`);
-    lines.push(n);
-  });
-  lines.push("\n## JOB APPLICATIONS");
-  (data.jobs||[]).forEach(j=>{
-    lines.push(`\n${j.company} — ${j.role}`);
-    lines.push(`  Status: ${j.status} | Method: ${j.method} | Date: ${j.date}`);
-    if (j.notes) lines.push(`  Notes: ${j.notes}`);
-  });
-  const blob = new Blob([lines.join("\n")], {type:"text/plain"});
-  const a    = document.createElement("a");
-  a.href     = URL.createObjectURL(blob);
-  a.download = `nikhil-ai-tracker-export-${new Date().toISOString().split("T")[0]}.txt`;
-  a.click();
-  showToast("Exported! 📤");
-}
-
-// ─── Toast ────────────────────────────────────────────────
-function showToast(msg) {
-  const toast = document.getElementById("toast");
-  toast.textContent = msg;
-  toast.classList.add("visible");
-  setTimeout(() => toast.classList.remove("visible"), 2500);
-}
-
-// ─── Progress Ring ────────────────────────────────────────
-function updateProgressRing(pct) {
-  const circle = document.getElementById("progressRing");
-  if (!circle) return;
-  const c = 2*Math.PI*70;
-  circle.style.strokeDasharray  = c;
-  circle.style.strokeDashoffset = c-(pct/100)*c;
-}
-
-// ─── Dynamic motivator ────────────────────────────────────
-const QUOTES_EARLY  = ["You planted the seed. Now water it every day.","Day 1 energy, but make it permanent.","The beginning is always the hardest. You're past it."];
-const QUOTES_MID    = ["You're in the grind now. This is where most people quit. Not you.","Halfway means you've already proven you can do this.","The middle is messy. That's how you know it's real."];
-const QUOTES_LATE   = ["The finish line is in sight. Sprint.","You're almost there. Don't let up now.","Future Nikhil is waiting. Get him his dream job."];
-
-function updateMotivator() {
-  const pct = Math.round((data.videosCompleted/ROADMAP.totalVideos)*100);
-  const pool = pct < 30 ? QUOTES_EARLY : pct < 70 ? QUOTES_MID : QUOTES_LATE;
-  const today = new Date().toDateString();
-  const idx   = Math.abs(today.split("").reduce((a,c)=>a+c.charCodeAt(0),0)) % pool.length;
-  setText("motivatorQuote", `"${pool[idx]}"`);
-  setText("motivatorSub",   `— Day ${getDayNumber()} of 77. ${daysUntilEnd()} days until Sep 8. 🔥`);
-}
-
-// ─── Master update ────────────────────────────────────────
-function updateAll() {
-  const day      = getDayNumber();
-  const week     = getWeekNumber();
-  const progress = Math.min(100, Math.round((data.videosCompleted/ROADMAP.totalVideos)*100));
-  const dayData  = ROADMAP.days[day];
-
-  setText("currentDay",        `📅 Day ${day}`);
-  setText("currentWeek",       `🚀 Week ${week}`);
-  setText("overallProgressPct", progress+"%");
-  setText("videosCompleted",   `${data.videosCompleted} / ${ROADMAP.totalVideos}`);
-  setText("daysCompleted",     `${day} / ${ROADMAP.totalDays}`);
-  setText("projectsCompleted", `${(data.completedProjects||[]).length} / ${ROADMAP.totalProjects}`);
-  setText("applicationsCount", (data.jobs||[]).length);
-  setText("streakCount",       data.streak||0);
-  setText("countdownDays",     daysUntilEnd());
-
-  updateProgressRing(progress);
-  updateXPBar();
-  updateWeeklyRing();
-  updateMotivator();
-  renderHeatmap();
-  renderPlaylistBars();
-
-  if (dayData) {
-    setText("todayDate", getDayDate(day));
-    const tHtml = dayData.topics.map(t=>`<span class="topic-tag">${t}</span>`).join("");
-    document.getElementById("todayMission").innerHTML = `
-      <div class="mission-playlist">${dayData.playlist}</div>
-      <div class="mission-topics">${tHtml}</div>
-      <div class="mission-meta">
-        <span>🎥 ${dayData.targetVideos} videos</span>
-        <span>⏰ ${dayData.targetHours}h</span>
-        <span>🛠️ ${dayData.practice}</span>
-      </div>`;
-  }
-
-  const dayKeys = dayData ? dayData.topics.map(t=>`d${day}_${t}`) : [];
-  const doneT   = dayKeys.filter(k=>data.completedTopics.includes(k)).length;
-  const dayPct  = dayKeys.length ? Math.round((doneT/dayKeys.length)*100) : 0;
-  const bar     = document.getElementById("dayProgressBar");
-  if (bar) bar.style.width = dayPct+"%";
-  setText("dayProgressPct", dayPct+"%");
-
-  // streak banner
-  const banner = document.getElementById("streakBanner");
-  if (banner) {
-    if ((data.streak||0) >= 3) {
-      banner.classList.remove("hidden");
-      setText("streakBannerText", `${data.streak}-day streak`);
-    } else { banner.classList.add("hidden"); }
-  }
-
-  if (!data.darkMode) {
-    document.body.classList.add("light");
-    document.getElementById("themeBtn").textContent = "🌙 Dark";
-  } else {
-    document.body.classList.remove("light");
-    document.getElementById("themeBtn").textContent = "☀️ Light";
-  }
-
-  renderChecklist();
-}
-
-function setText(id, val) {
-  const el = document.getElementById(id);
-  if (el) el.textContent = val;
+  data.darkMode=!document.body.classList.contains("light");
+  const b=document.getElementById("themeBtn");
+  if(b) b.textContent=data.darkMode?"☀️ Light":"🌙 Dark";
+  saveAndSync(data);
 }
 
 // ─── Keyboard shortcuts ───────────────────────────────────
-document.addEventListener("keydown", e => {
-  if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
-  if (e.key === "n" || e.key === "N") nextDay();
-  if (e.key === "p" || e.key === "P") previousDay();
-  if (e.key === "1") switchTab("today");
-  if (e.key === "2") switchTab("weeks");
-  if (e.key === "3") switchTab("projects");
-  if (e.key === "4") switchTab("jobs");
-  if (e.key === "5") switchTab("log");
+document.addEventListener("keydown", e=>{
+  if(e.target.tagName==="INPUT"||e.target.tagName==="TEXTAREA") return;
+  if(e.key==="1") switchTab("mission");
+  if(e.key==="2") switchTab("ai");
+  if(e.key==="3") switchTab("dsa");
+  if(e.key==="4") switchTab("projects");
+  if(e.key==="5") switchTab("jobs");
 });
 
-// ─── Auto date sync ───────────────────────────────────────
-function autoSyncDay() {
-  const start = new Date("2026-06-11");
-  const today = new Date();
-  today.setHours(0,0,0,0);
-  start.setHours(0,0,0,0);
-  const diff = Math.floor((today - start) / 86400000) + 1;
-  if (diff >= 1 && diff <= 77) {
-    data.currentDay = diff;
-    saveData(data);
-  }
-}
+// ─── INIT ─────────────────────────────────────────────────
+document.addEventListener("DOMContentLoaded", ()=>{
+  // Auto-sync AI day to real date
+  const realDay = getTodayAIDay();
+  data.currentDay = realDay;
+  if(!data.dsaCurrentDay) data.dsaCurrentDay=1;
+  if(!data.sqlCurrentDay) data.sqlCurrentDay=1;
+  if(data.darkMode===undefined) data.darkMode=true;
+  if(!data.darkMode) document.body.classList.add("light");
 
-// ─── Init ─────────────────────────────────────────────────
-document.addEventListener("DOMContentLoaded", () => {
-  autoSyncDay();
-  initSplash();
-  updateAll();
+  updateStreak();
+  saveData(data);
 
-  document.getElementById("themeBtn").addEventListener("click", toggleTheme);
-  document.getElementById("nextDayBtn").addEventListener("click", nextDay);
-  document.getElementById("prevDayBtn").addEventListener("click", previousDay);
-  document.querySelectorAll(".tab-btn").forEach(btn => {
-    btn.addEventListener("click", () => switchTab(btn.dataset.tab));
+  // Theme btn
+  const tb=document.getElementById("themeBtn");
+  if(tb){ tb.textContent=data.darkMode?"☀️ Light":"🌙 Dark"; tb.addEventListener("click",toggleTheme); }
+
+  // Tabs
+  document.querySelectorAll(".tab-btn").forEach(btn=>{
+    btn.addEventListener("click",()=>switchTab(btn.dataset.tab));
   });
-  const ji = document.getElementById("jumpInput");
-  if (ji) {
-    ji.addEventListener("change", () => jumpToDay(parseInt(ji.value)));
-    ji.addEventListener("keydown", e => { if(e.key==="Enter") jumpToDay(parseInt(ji.value)); });
-  }
 
-  // animate stats count-up
-  setTimeout(() => {
-    document.querySelectorAll(".stat-card").forEach((c,i) => {
-      setTimeout(() => c.classList.add("pop"), i * 80);
-    });
-  }, 200);
+  // Sidebar countdown
+  const dlEl=document.getElementById("sidebarDays");
+  if(dlEl) dlEl.textContent=daysLeft();
+
+  // Sidebar track progress
+  const totalAI=Object.values(ROADMAP.days).reduce((s,d)=>s+d.topics.length,0);
+  const doneAI=(data.completedTopics||[]).length;
+  const doneDSA=(data.dsaCompleted||[]).length;
+  const doneSql=(data.sqlDays||[]).length;
+  setText("sideAIPct",  Math.round((doneAI/totalAI)*100)+"%");
+  setText("sideDSAPct", Math.round((doneDSA/DSA_PLAN.totalProblems)*100)+"%");
+  setText("sideSQLPct", Math.round((doneSql/30)*100)+"%");
+
+  // Drive init
+  handleOAuthCallback();
+  initDrive();
+
+  // Render first tab
+  renderMission();
 });
+JSEOF
+echo "app done"
