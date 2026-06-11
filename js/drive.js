@@ -16,16 +16,23 @@ function initDrive() {
   const token = localStorage.getItem(TOKEN_KEY);
   const ts    = parseInt(localStorage.getItem(TOKEN_TS_KEY) || "0", 10);
 
-  // Expire stored token if older than TTL
   if (token && (Date.now() - ts) < TOKEN_TTL_MS) {
     driveToken = token;
   } else if (token) {
-    // Token too old — clear it silently
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(TOKEN_TS_KEY);
   }
 
   updateSyncUI();
+
+  // ── FIX 1: Wire up drive buttons here ──────────────────
+  const connectBtn = document.getElementById("connectDriveBtn");
+  const syncBtn    = document.getElementById("syncBtn");
+  const loadBtn    = document.getElementById("loadBtn");
+
+  if (connectBtn) connectBtn.addEventListener("click", connectDrive);
+  if (syncBtn)    syncBtn.addEventListener("click", syncToDrive);
+  if (loadBtn)    loadBtn.addEventListener("click", loadFromDrive);
 }
 
 // ── OAuth ─────────────────────────────────────────────────
@@ -48,12 +55,21 @@ function connectDrive() {
   startOAuth();
 }
 
+function getRedirectUri() {
+  // ── FIX 2: Always use clean base URL without index.html ─
+  // GitHub Pages may give pathname as "/repo/index.html"
+  // Google Console needs it registered as "/repo/" exactly
+  const origin   = window.location.origin;
+  const pathname = window.location.pathname.replace(/index\.html$/, "");
+  return origin + pathname;
+}
+
 function startOAuth() {
   const clientId = localStorage.getItem(CLIENT_ID_KEY);
   if (!clientId) { showToast("No Client ID set"); return; }
 
-  const redirectUri = window.location.origin + window.location.pathname;
-  const scope = "https://www.googleapis.com/auth/drive.file"; // drive.file is sufficient
+  const redirectUri = getRedirectUri();
+  const scope = "https://www.googleapis.com/auth/drive.file";
   const url = "https://accounts.google.com/o/oauth2/v2/auth" +
     `?client_id=${encodeURIComponent(clientId)}` +
     `&redirect_uri=${encodeURIComponent(redirectUri)}` +
@@ -76,7 +92,6 @@ function handleOAuthCallback() {
   localStorage.setItem(TOKEN_KEY, token);
   localStorage.setItem(TOKEN_TS_KEY, Date.now().toString());
 
-  // Clean the token from the URL bar
   window.history.replaceState({}, document.title, window.location.pathname);
   updateSyncUI();
   showToast("✅ Google Drive connected!");
@@ -92,7 +107,6 @@ async function syncToDrive() {
   if (btn) { btn.textContent = "☁️ Syncing…"; btn.disabled = true; }
 
   try {
-    // Search for existing file
     const searchRes = await fetch(
       `https://www.googleapis.com/drive/v3/files?q=name='${DRIVE_FILE_NAME}'&spaces=drive&fields=files(id,name)`,
       { headers: { Authorization: `Bearer ${driveToken}` } }
@@ -105,7 +119,6 @@ async function syncToDrive() {
     const content    = JSON.stringify(d);
 
     if (fileId) {
-      // Update existing file
       const updateRes = await fetch(
         `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`,
         {
@@ -117,7 +130,6 @@ async function syncToDrive() {
       if (updateRes.status === 401) { handleTokenExpiry(); return; }
       d.driveFileId = fileId;
     } else {
-      // Create new file (multipart: metadata + content)
       const meta = { name: DRIVE_FILE_NAME, mimeType: "application/json" };
       const form = new FormData();
       form.append("metadata", new Blob([JSON.stringify(meta)], { type: "application/json" }));
@@ -202,7 +214,6 @@ function scheduleAutoSync() {
   syncTimeout = setTimeout(syncToDrive, 3000);
 }
 
-// Public API: use this everywhere instead of saveData() directly
 function saveAndSync(d) {
   saveData(d);
   scheduleAutoSync();
@@ -221,7 +232,6 @@ function updateSyncUI() {
   if (driveToken) {
     const lastSync = d.lastSynced ? timeAgo(new Date(d.lastSynced)) : "never";
     indicator.innerHTML = `<span class="sync-dot connected"></span> Drive connected · ${lastSync}`;
-    // Use classList to match the .hidden utility class from CSS
     syncBtn?.classList.remove("hidden");
     loadBtn?.classList.remove("hidden");
     connectBtn?.classList.add("hidden");
