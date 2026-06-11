@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nikhil's AI Roadmap Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="js/roadmap.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/app.js" defer></script>
+</head>
+<body>
+
+<div id="toast"></div>
+
+<div class="shell">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-icon">N</div>
+      <div class="brand-text">
+        <span class="brand-name">Nikhil</span>
+        <span class="brand-sub">AI Roadmap</span>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <button class="tab-btn active" data-tab="today">🏠 Today</button>
+      <button class="tab-btn" data-tab="weeks">📅 Timeline</button>
+      <button class="tab-btn" data-tab="projects">🚀 Projects</button>
+      <button class="tab-btn" data-tab="log">📝 Log</button>
+    </nav>
+
+    <div class="sidebar-meta">
+      <div class="meta-row"><span>Target</span><span>AI / Data Eng</span></div>
+      <div class="meta-row"><span>End Date</span><span>8 Sep 2026</span></div>
+      <div class="meta-row"><span>Videos</span><span>311 total</span></div>
+    </div>
+
+    <div class="sidebar-actions">
+      <button id="themeBtn" class="btn-ghost">☀️ Light</button>
+      <button onclick="resetData()" class="btn-danger">🗑 Reset</button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- TOP BAR -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <span id="currentDay" class="topbar-day">📅 Day 1</span>
+        <span id="currentWeek" class="topbar-week">🚀 Week 1</span>
+      </div>
+      <div class="day-nav">
+        <button id="prevDayBtn" class="nav-btn">◀ Prev</button>
+        <input id="jumpInput" type="number" min="1" max="77" placeholder="Go to day…" class="jump-input">
+        <button id="nextDayBtn" class="nav-btn">Next ▶</button>
+      </div>
+    </header>
+
+    <!-- TODAY TAB -->
+    <div id="tab-today" class="tab-pane active">
+
+      <!-- Hero Row -->
+      <div class="hero-row">
+
+        <!-- Progress Ring Card -->
+        <div class="card ring-card">
+          <h2 class="card-title">Overall Progress</h2>
+          <div class="ring-wrap">
+            <svg class="ring-svg" viewBox="0 0 160 160">
+              <circle cx="80" cy="80" r="70" class="ring-bg"/>
+              <circle cx="80" cy="80" r="70" id="progressRing" class="ring-fill"/>
+            </svg>
+            <span id="overallProgressPct" class="ring-label">0%</span>
+          </div>
+          <div class="streak-badge"><span id="streakCount">0 🔥</span> day streak</div>
+        </div>
+
+        <!-- Today's Mission -->
+        <div class="card mission-card">
+          <div class="card-title-row">
+            <h2 class="card-title">Today's Mission</h2>
+            <span id="todayDate" class="today-date"></span>
+          </div>
+          <div id="todayMission" class="mission-body">Loading…</div>
+          <div class="day-progress">
+            <div class="day-progress-header">
+              <span>Today's topics</span>
+              <span id="dayProgressPct">0%</span>
+            </div>
+            <div class="day-progress-track">
+              <div id="dayProgressBar" class="day-progress-fill"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Stats Row -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-icon">🎥</div>
+          <div class="stat-val" id="videosCompleted">0 / 311</div>
+          <div class="stat-lbl">Videos</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">📅</div>
+          <div class="stat-val" id="daysCompleted">0 / 77</div>
+          <div class="stat-lbl">Days</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🚀</div>
+          <div class="stat-val" id="projectsCompleted">0 / 12</div>
+          <div class="stat-lbl">Projects</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">💼</div>
+          <div class="stat-val" id="applicationsCount">0</div>
+          <div class="stat-lbl">Applications</div>
+        </div>
+      </div>
+
+      <!-- Checklist -->
+      <div class="card checklist-card">
+        <h2 class="card-title">✅ Today's Topic Checklist</h2>
+        <div id="videoChecklist" class="checklist-body"></div>
+      </div>
+
+      <!-- Motivator -->
+      <div class="card motivator-card">
+        <div class="motivator-quote">"Small progress every day beats motivation once a month."</div>
+        <div class="motivator-sub">— Keep going, Nikhil. Sep 8 is close. 🔥</div>
+      </div>
+
+    </div>
+
+    <!-- WEEKS TAB -->
+    <div id="tab-weeks" class="tab-pane">
+      <h2 class="section-title">📅 11-Week Timeline</h2>
+      <div id="weeksGrid" class="weeks-grid"></div>
+    </div>
+
+    <!-- PROJECTS TAB -->
+    <div id="tab-projects" class="tab-pane">
+      <h2 class="section-title">🚀 Project Portfolio</h2>
+      <div id="projectsGrid" class="projects-grid"></div>
+    </div>
+
+    <!-- LOG TAB -->
+    <div id="tab-log" class="tab-pane">
+      <h2 class="section-title">📝 Daily Log</h2>
+      <div id="logContainer"></div>
+    </div>
+
+  </main>
+</div>
+
+</body>
+</html>
