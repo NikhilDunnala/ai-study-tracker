@@ -1,4 +1,4 @@
-cat > /home/claude/war-room/js/storage.js << 'EOF'
+
 const STORAGE_KEY = "nikhil_warroom_v1";
 
 function getData() {
@@ -58,8 +58,6 @@ function exportData() {
   a.click();
   showToast("Exported! 📤");
 }
-EOF
-echo "storage done"
-Output
+
 
 
