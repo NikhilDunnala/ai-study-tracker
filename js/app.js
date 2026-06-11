@@ -1,4 +1,3 @@
-
 let data = getData();
 
 // ─── XP System ────────────────────────────────────────────
@@ -626,8 +625,22 @@ document.addEventListener("keydown", e => {
   if (e.key === "5") switchTab("log");
 });
 
+// ─── Auto date sync ───────────────────────────────────────
+function autoSyncDay() {
+  const start = new Date("2026-06-11");
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  start.setHours(0,0,0,0);
+  const diff = Math.floor((today - start) / 86400000) + 1;
+  if (diff >= 1 && diff <= 77) {
+    data.currentDay = diff;
+    saveData(data);
+  }
+}
+
 // ─── Init ─────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", () => {
+  autoSyncDay();
   initSplash();
   updateAll();
 
