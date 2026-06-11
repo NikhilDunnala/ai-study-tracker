@@ -1,4 +1,5 @@
-const STORAGE_KEY = "nikhil_tracker_v4";
+cat > /home/claude/war-room/js/storage.js << 'EOF'
+const STORAGE_KEY = "nikhil_warroom_v1";
 
 function getData() {
   const saved = localStorage.getItem(STORAGE_KEY);
@@ -6,14 +7,18 @@ function getData() {
   return {
     completedTopics: [],
     completedProjects: [1,2,3],
+    projectLinks: {},
     currentDay: 1,
-    notes: {},
+    dsaCurrentDay: 1,
+    sqlCurrentDay: 1,
+    dsaCompleted: [],
+    sqlDays: [],
+    jobs: [],
     streak: 0,
     lastActiveDate: null,
-    jobs: [],
-    dsaCompleted: [],      // array of problem ids
-    sqlDays: [],           // array of day numbers (1-30) completed
-    aiVideosDone: {},      // { "dayKey_topicIdx": true }
+    darkMode: true,
+    driveFileId: null,
+    lastSynced: null,
   };
 }
 
@@ -21,24 +26,40 @@ function saveData(d) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(d));
 }
 
+function resetData() {
+  const a = confirm("⚠️ Delete ALL progress permanently?");
+  if (!a) return;
+  const b = confirm("🚨 Final warning — cannot be undone. Continue?");
+  if (!b) return;
+  localStorage.removeItem(STORAGE_KEY);
+  location.reload();
+}
+
 function exportData() {
-  const lines = ["# Nikhil Job Landing Tracker — Export", `Date: ${new Date().toLocaleDateString()}`, ""];
-  lines.push("## AI TRACK TOPICS COMPLETED");
-  lines.push(`${(data.completedTopics||[]).length} topics checked`);
-  lines.push("\n## DSA COMPLETED");
-  lines.push(`${(data.dsaCompleted||[]).length} problems solved`);
-  lines.push("\n## SQL DAYS COMPLETED");
-  lines.push(`${(data.sqlDays||[]).length}/30 days done`);
-  lines.push("\n## JOB APPLICATIONS");
+  const lines = [
+    "# NIKHIL — JOB LANDING WAR ROOM EXPORT",
+    `Date: ${new Date().toLocaleDateString()}`, "",
+    `AI Topics Done: ${(data.completedTopics||[]).length}`,
+    `DSA Solved: ${(data.dsaCompleted||[]).length}/${DSA_PLAN.totalProblems}`,
+    `SQL Days: ${(data.sqlDays||[]).length}/30`,
+    `Projects: ${(data.completedProjects||[]).length}/${ROADMAP.totalProjects}`,
+    `Applications: ${(data.jobs||[]).length}`, "",
+    "## JOB APPLICATIONS",
+  ];
   (data.jobs||[]).forEach(j => {
-    lines.push(`\n${j.company} — ${j.role}`);
-    lines.push(`  Status: ${j.status} | Method: ${j.method} | Date: ${j.date}`);
+    lines.push(`\n${j.company} — ${j.role} [${j.status}]`);
+    lines.push(`  Method: ${j.method} | Date: ${j.date}`);
     if (j.notes) lines.push(`  Notes: ${j.notes}`);
   });
   const blob = new Blob([lines.join("\n")], {type:"text/plain"});
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = `nikhil-tracker-export-${new Date().toISOString().split("T")[0]}.txt`;
+  a.download = `nikhil-warroom-${new Date().toISOString().split("T")[0]}.txt`;
   a.click();
   showToast("Exported! 📤");
 }
+EOF
+echo "storage done"
+Output
+
+
