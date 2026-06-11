@@ -1,4 +1,4 @@
-cat > /home/claude/war-room/js/jobs.js << 'EOF'
+
 const JOB_STATUSES = ["Applied","Followed Up","Interview","Offer","Rejected"];
 const STATUS_COLORS = {
   "Applied":     "#38bdf8",
@@ -578,8 +578,7 @@ a{color:inherit;}
   .job-stat-card{min-width:70px;padding:10px;}
 }
 CSSEOF
-echo "css done"
-Output
+
 
 
 
