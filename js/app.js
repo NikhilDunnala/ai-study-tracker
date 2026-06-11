@@ -1,4 +1,3 @@
-
 let data = getData();
 
 // ─── Utility ──────────────────────────────────────────────
@@ -46,6 +45,19 @@ function updateStreak() {
     data.streak = data.lastActiveDate===yest.toDateString() ? (data.streak||0)+1 : 1;
     data.lastActiveDate=today;
   }
+}
+
+// ─── Sidebar progress (called after every toggle) ─────────
+function refreshSidebar() {
+  const totalAI=Object.values(ROADMAP.days).reduce((s,d)=>s+d.topics.length,0);
+  const doneAI=(data.completedTopics||[]).length;
+  const doneDSA=(data.dsaCompleted||[]).length;
+  const doneSql=(data.sqlDays||[]).length;
+  setText("sideAIPct",  Math.round((doneAI/totalAI)*100)+"%");
+  setText("sideDSAPct", Math.round((doneDSA/DSA_PLAN.totalProblems)*100)+"%");
+  setText("sideSQLPct", Math.round((doneSql/30)*100)+"%");
+  const dlEl=document.getElementById("sidebarDays");
+  if(dlEl) dlEl.textContent=daysLeft();
 }
 
 // ─── Tab switching ────────────────────────────────────────
@@ -253,6 +265,8 @@ function renderMission() {
       </div>
 
     </div>`;
+
+  refreshSidebar();
 }
 
 // ─── Toggles ──────────────────────────────────────────────
@@ -537,18 +551,11 @@ document.addEventListener("DOMContentLoaded", ()=>{
     btn.addEventListener("click",()=>switchTab(btn.dataset.tab));
   });
 
-  // Sidebar countdown
-  const dlEl=document.getElementById("sidebarDays");
-  if(dlEl) dlEl.textContent=daysLeft();
+  // Wire up Jobs tab buttons + Export/Reset
+  initJobsTab();
 
-  // Sidebar track progress
-  const totalAI=Object.values(ROADMAP.days).reduce((s,d)=>s+d.topics.length,0);
-  const doneAI=(data.completedTopics||[]).length;
-  const doneDSA=(data.dsaCompleted||[]).length;
-  const doneSql=(data.sqlDays||[]).length;
-  setText("sideAIPct",  Math.round((doneAI/totalAI)*100)+"%");
-  setText("sideDSAPct", Math.round((doneDSA/DSA_PLAN.totalProblems)*100)+"%");
-  setText("sideSQLPct", Math.round((doneSql/30)*100)+"%");
+  // Sidebar countdown + track progress
+  refreshSidebar();
 
   // Drive init
   handleOAuthCallback();
@@ -557,4 +564,3 @@ document.addEventListener("DOMContentLoaded", ()=>{
   // Render first tab
   renderMission();
 });
-
