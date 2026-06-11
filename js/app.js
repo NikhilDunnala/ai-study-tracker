@@ -1,4 +1,4 @@
-cat > /home/claude/war-room/js/app.js << 'JSEOF'
+
 let data = getData();
 
 // ─── Utility ──────────────────────────────────────────────
@@ -557,5 +557,4 @@ document.addEventListener("DOMContentLoaded", ()=>{
   // Render first tab
   renderMission();
 });
-JSEOF
-echo "app done"
+
