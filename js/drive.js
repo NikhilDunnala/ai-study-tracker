@@ -1,4 +1,4 @@
-cat > /home/claude/war-room/js/drive.js << 'EOF'
+
 // ─── Google Drive Sync ────────────────────────────────────
 // Uses Google Drive REST API with a simple OAuth token
 // File stored as "nikhil-warroom-data.json" in Drive root
@@ -180,9 +180,7 @@ function saveAndSync(d) {
   saveData(d);
   scheduleAutoSync();
 }
-EOF
-echo "drive done"
-Output
+
 
 
 
