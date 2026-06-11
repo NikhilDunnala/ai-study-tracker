@@ -1,4 +1,4 @@
-cat > /home/claude/war-room/js/dsa.js << 'EOF'
+
 const DSA_PLAN = {
   totalDays: 90,
   topics: [
@@ -265,8 +265,3 @@ const DSA_PLAN = {
   ]
 };
 DSA_PLAN.totalProblems = DSA_PLAN.topics.reduce((s,t) => s + t.subtopics.length, 0);
-EOF
-echo "dsa done"
-Output
-
-dsa done
