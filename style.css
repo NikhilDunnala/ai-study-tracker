@@ -1,4 +1,4 @@
-cat > /home/claude/war-room/style.css << 'CSSEOF'
+
 /* ── Variables ── */
 :root {
   --bg:     #07090f;
@@ -446,9 +446,5 @@ a{color:inherit;}
   .job-stat-card{min-width:70px;padding:10px;}
 }
 CSSEOF
-echo "css done"
-Output
 
-css done
-Done
 
